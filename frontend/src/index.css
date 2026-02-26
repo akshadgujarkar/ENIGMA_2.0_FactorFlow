@@ -1,0 +1,115 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@layer base {
+  :root {
+    --background: 220 25% 5%;
+    --foreground: 210 20% 93%;
+
+    --card: 220 22% 8%;
+    --card-foreground: 210 20% 93%;
+
+    --popover: 220 22% 8%;
+    --popover-foreground: 210 20% 93%;
+
+    --primary: 160 84% 39%;
+    --primary-foreground: 220 25% 5%;
+
+    --secondary: 220 18% 13%;
+    --secondary-foreground: 210 20% 85%;
+
+    --muted: 220 18% 13%;
+    --muted-foreground: 215 15% 50%;
+
+    --accent: 174 72% 40%;
+    --accent-foreground: 220 25% 5%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 15% 14%;
+    --input: 220 15% 14%;
+    --ring: 160 84% 39%;
+
+    --radius: 0.75rem;
+
+    /* Indicator colors */
+    --indicator-green: 160 84% 45%;
+    --indicator-heat: 25 95% 53%;
+    --indicator-flood: 195 85% 50%;
+    --indicator-density: 270 70% 60%;
+
+    /* Status colors */
+    --status-good: 160 84% 45%;
+    --status-warning: 38 92% 50%;
+    --status-critical: 0 72% 51%;
+
+    /* Glass */
+    --glass-bg: 220 25% 8%;
+    --glass-border: 220 15% 18%;
+
+    /* Sidebar */
+    --sidebar-background: 220 25% 6%;
+    --sidebar-foreground: 210 20% 85%;
+    --sidebar-primary: 160 84% 39%;
+    --sidebar-primary-foreground: 220 25% 5%;
+    --sidebar-accent: 220 18% 11%;
+    --sidebar-accent-foreground: 210 20% 85%;
+    --sidebar-border: 220 15% 14%;
+    --sidebar-ring: 160 84% 39%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-xl;
+  }
+
+  .glass-panel-solid {
+    @apply bg-card border border-border rounded-xl;
+  }
+
+  .indicator-badge {
+    @apply text-xs font-semibold px-2.5 py-0.5 rounded-full;
+  }
+
+  .indicator-badge-good {
+    @apply indicator-badge;
+    background: hsl(var(--status-good) / 0.15);
+    color: hsl(var(--status-good));
+  }
+
+  .indicator-badge-warning {
+    @apply indicator-badge;
+    background: hsl(var(--status-warning) / 0.15);
+    color: hsl(var(--status-warning));
+  }
+
+  .indicator-badge-critical {
+    @apply indicator-badge;
+    background: hsl(var(--status-critical) / 0.15);
+    color: hsl(var(--status-critical));
+  }
+
+  .section-title {
+    @apply text-xs font-semibold uppercase tracking-wider text-muted-foreground;
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
