@@ -15,9 +15,30 @@ import {
 
 const BASEMAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
+/** Compute centroid of a polygon's first ring */
+function polygonCentroid(coords: number[][]): [number, number] {
+  const len = coords.length;
+  const sum = coords.reduce((acc, c) => [acc[0] + c[0], acc[1] + c[1]], [0, 0]);
+  return [sum[0] / len, sum[1] / len];
+}
+
+/** Build a pulsing marker DOM element */
+function createPulseMarker(color: string, label: string): HTMLDivElement {
+  const el = document.createElement('div');
+  el.className = 'danger-marker-wrapper';
+  el.innerHTML = `
+    <div class="danger-pulse-ring" style="border-color:${color};box-shadow:0 0 12px ${color}"></div>
+    <div class="danger-pulse-ring danger-pulse-ring-delayed" style="border-color:${color};box-shadow:0 0 8px ${color}"></div>
+    <div class="danger-core" style="background:${color};box-shadow:0 0 10px ${color}"></div>
+    <div class="danger-label" style="color:${color}">${label}</div>
+  `;
+  return el;
+}
+
 export function CityMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
   const {
     layers,
     scenarioApplied,
@@ -236,28 +257,88 @@ export function CityMap() {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
-    const greenOpacity = scenarioApplied ? Math.min(greenCoverIncrease / 30, 1) * 0.4 : 0;
-    const heatReduction = scenarioApplied ? greenCoverIncrease * 0.01 : 0;
+    const greenOpacity = scenarioApplied ? Math.min(greenCoverIncrease / 30, 1) * 0.55 : 0;
+    const heatReduction = scenarioApplied ? greenCoverIncrease * 0.012 : 0;
     const floodBoost = scenarioApplied
-      ? { none: 0, mild: 0.1, moderate: 0.2, extreme: 0.4 }[floodSeverity]
+      ? { none: 0, mild: 0.15, moderate: 0.35, extreme: 0.55 }[floodSeverity]
       : 0;
 
+    // New green areas — bright, high contrast
     if (map.getLayer('new-green-fill')) {
+      map.setPaintProperty('new-green-fill', 'fill-color', scenarioApplied ? '#22ff66' : '#4ade80');
       map.setPaintProperty('new-green-fill', 'fill-opacity', greenOpacity);
     }
     if (map.getLayer('new-green-outline')) {
-      map.setPaintProperty('new-green-outline', 'line-opacity', greenOpacity > 0 ? 0.7 : 0);
+      map.setPaintProperty('new-green-outline', 'line-color', scenarioApplied ? '#22ff66' : '#4ade80');
+      map.setPaintProperty('new-green-outline', 'line-width', scenarioApplied ? 3 : 1.5);
+      map.setPaintProperty('new-green-outline', 'line-opacity', greenOpacity > 0 ? 0.9 : 0);
     }
+
+    // Heat islands — intensify remaining or dim with greening
     if (map.getLayer('heat-islands-fill')) {
-      map.setPaintProperty('heat-islands-fill', 'fill-opacity', Math.max(0.05, 0.3 - heatReduction));
+      const heatOpacity = Math.max(0.05, 0.3 - heatReduction);
+      map.setPaintProperty('heat-islands-fill', 'fill-color', scenarioApplied && heatReduction < 0.1 ? '#ff4500' : '#f97316');
+      map.setPaintProperty('heat-islands-fill', 'fill-opacity', heatOpacity);
     }
+
+    // Flood zones — dramatic danger highlighting
+    const floodColor = scenarioApplied && floodBoost > 0.2 ? '#ff2d55' : '#06b6d4';
+    const floodOutlineColor = scenarioApplied && floodBoost > 0.2 ? '#ff6b8a' : '#06b6d4';
     if (map.getLayer('flood-zones-fill')) {
-      map.setPaintProperty('flood-zones-fill', 'fill-opacity', 0.25 + floodBoost);
+      map.setPaintProperty('flood-zones-fill', 'fill-color', floodColor);
+      map.setPaintProperty('flood-zones-fill', 'fill-opacity', Math.min(0.7, 0.25 + floodBoost));
     }
     if (map.getLayer('flood-zones-outline')) {
-      map.setPaintProperty('flood-zones-outline', 'line-opacity', 0.5 + floodBoost);
+      map.setPaintProperty('flood-zones-outline', 'line-color', floodOutlineColor);
+      map.setPaintProperty('flood-zones-outline', 'line-width', scenarioApplied ? 4 : 2);
+      map.setPaintProperty('flood-zones-outline', 'line-opacity', Math.min(1, 0.5 + floodBoost));
     }
   }, [scenarioApplied, greenCoverIncrease, floodSeverity]);
+
+  // Pulsing danger markers
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Remove existing markers
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    if (!scenarioApplied) return;
+
+    // Heat danger markers — pick highest intensity
+    const sortedHeat = [...heatIslandData.features].sort(
+      (a, b) => ((b.properties?.intensity as number) || 0) - ((a.properties?.intensity as number) || 0)
+    );
+    sortedHeat.slice(0, 2).forEach((f) => {
+      if (f.geometry.type !== 'Polygon') return;
+      const center = polygonCentroid(f.geometry.coordinates[0] as number[][]);
+      const marker = new maplibregl.Marker({ element: createPulseMarker('#ff4500', f.properties?.name || 'Heat Zone') })
+        .setLngLat(center)
+        .addTo(map);
+      markersRef.current.push(marker);
+    });
+
+    // Flood danger markers — only when severity > none
+    if (floodSeverity !== 'none') {
+      const sortedFlood = [...floodZoneData.features].sort(
+        (a, b) => ((b.properties?.intensity as number) || 0) - ((a.properties?.intensity as number) || 0)
+      );
+      sortedFlood.slice(0, 2).forEach((f) => {
+        if (f.geometry.type !== 'Polygon') return;
+        const center = polygonCentroid(f.geometry.coordinates[0] as number[][]);
+        const marker = new maplibregl.Marker({ element: createPulseMarker('#ff2d55', f.properties?.name || 'Flood Zone') })
+          .setLngLat(center)
+          .addTo(map);
+        markersRef.current.push(marker);
+      });
+    }
+
+    return () => {
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+    };
+  }, [scenarioApplied, floodSeverity]);
 
   return (
     <div className="relative w-full h-full">
@@ -268,6 +349,18 @@ export function CityMap() {
           Barcelona · Eixample District
         </span>
       </div>
+      {/* Scenario active banner */}
+      {scenarioApplied && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 glass-panel px-4 py-2 flex items-center gap-2 animate-fade-in border-destructive/50">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
+          </span>
+          <span className="text-xs font-semibold text-destructive mono uppercase tracking-wider">
+            Scenario Active — Danger zones highlighted
+          </span>
+        </div>
+      )}
     </div>
   );
 }
