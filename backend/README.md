@@ -1,7 +1,7 @@
 ## Resilient City Digital Twin – Backend
 
 This is the Flask backend for the SDG 11 "Resilient City" Digital Twin. It connects
-to Google Earth Engine, Firebase, Redis, and Gemini, and serves ML-powered
+to Google Earth Engine, Firebase, and Gemini, and serves ML-powered
 scenario simulations to the React frontend.
 
 ### Tech stack
@@ -9,7 +9,6 @@ scenario simulations to the React frontend.
 - **Flask** with blueprints
 - **Google Earth Engine** (Sentinel‑1/2, Landsat 8/9)
 - **Firebase Admin SDK** (for storing pre‑processed indices and model artefacts)
-- **Redis** for caching heavy GEE computations
 - **Google Generative AI (Gemini 2.5 Flash)** for narrative explanations
 - **scikit‑learn + XGBoost + PyTorch (stub CNN)** for ML models
 
@@ -17,7 +16,7 @@ scenario simulations to the React frontend.
 
 - `app/__init__.py` – Flask app factory and blueprint registration
 - `app/config.py` – configuration and environment variables
-- `app/extensions.py` – initialises GEE, Firebase, Redis, Gemini
+- `app/extensions.py` – initialises GEE, Firebase, Gemini
 - `app/routes/` – REST endpoints:
   - `cities.py` – `/api/cities`
   - `city_data.py` – `/api/city/<city>/data`, `/api/city/<city>/timeseries`
@@ -48,9 +47,10 @@ scenario simulations to the React frontend.
 
    Required pieces:
 
-   - Google Earth Engine service account + JSON key
+   - Google Earth Engine credentials:
+     - Either run `earthengine authenticate` locally (free OAuth flow), **or**
+     - Provide a service account + JSON key if you prefer.
    - Firebase service account JSON + database URL (free tier)
-   - Redis instance (local is fine)
    - Gemini API key from Google AI Studio
 
 3. **Authenticate Earth Engine locally (if needed)**

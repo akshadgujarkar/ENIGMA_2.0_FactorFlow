@@ -24,10 +24,6 @@ class Config:
   FIREBASE_CREDENTIALS_PATH: str | None = os.getenv("FIREBASE_CREDENTIALS_PATH")
   FIREBASE_DB_URL: str | None = os.getenv("FIREBASE_DB_URL")
 
-  # Redis
-  REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-  REDIS_CACHE_TTL_SECONDS: int = int(os.getenv("REDIS_CACHE_TTL_SECONDS", "3600"))
-
   # Gemini (Google Generative AI)
   GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
   GEMINI_MODEL_NAME: str = os.getenv("GEMINI_MODEL_NAME", "models/gemini-2.5-flash")

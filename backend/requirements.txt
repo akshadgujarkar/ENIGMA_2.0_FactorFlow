@@ -3,7 +3,6 @@ Flask-Cors==4.0.1
 google-earth-engine==0.1.390
 google-auth==2.37.0
 firebase-admin==6.6.0
-redis==5.2.1
 google-generativeai==0.8.3
 joblib==1.4.2
 numpy==1.26.4

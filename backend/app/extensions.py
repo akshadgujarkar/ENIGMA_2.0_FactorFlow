@@ -6,12 +6,10 @@ import ee
 import firebase_admin
 from firebase_admin import credentials as fb_credentials
 import google.generativeai as genai
-import redis
 from flask import Flask
 
 from .config import Config
 
-redis_client: redis.Redis | None = None
 firebase_app: firebase_admin.App | None = None
 gemini_model: Any | None = None
 
@@ -47,13 +45,6 @@ def init_firebase(config: Config) -> None:
   )
 
 
-def init_redis(config: Config) -> None:
-  global redis_client
-  if redis_client is not None:
-    return
-  redis_client = redis.from_url(config.REDIS_URL)
-
-
 def init_gemini(config: Config) -> None:
   global gemini_model
   if gemini_model is not None:
@@ -72,6 +63,5 @@ def init_extensions(app: Flask) -> None:
   # Explicitly use env-based config for integrations
   init_earth_engine(cfg)
   init_firebase(cfg)
-  init_redis(cfg)
   init_gemini(cfg)
 
