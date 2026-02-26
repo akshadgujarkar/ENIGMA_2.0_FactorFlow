@@ -23,10 +23,14 @@ def generate_impact_story(payload: dict[str, Any]) -> str:
   scenario = payload.get("scenario", {})
   config = payload.get("config", {})
 
+  scenario_type = config.get("scenario_type", "custom")
+
   prompt = f"""
 You are an urban resilience and climate adaptation expert.
 
 City: {city}
+
+Scenario type: {scenario_type}
 
 Baseline metrics (approximate indices 0–100):
 {baseline}

@@ -36,6 +36,102 @@ const LAYER_LABELS: Record<LayerKey, string> = {
   floodZones: 'Flood Zones',
 };
 
+type ScenarioPresetId =
+  | 'green_push'
+  | 'flood_resilience'
+  | 'heat_mitigation'
+  | 'sprawl_2030'
+  | 'combined_shock';
+
+const SCENARIO_PRESETS: Record<
+  ScenarioPresetId,
+  {
+    label: string;
+    description: string;
+    greenIncrease: number;
+    floodSeverity: FloodSeverity;
+    treePlantingRate: number;
+    wetlandRestoration: number;
+    coolRoofCoverage: number;
+    drainageImprovement: number;
+    permeableSurfaceGain: number;
+    densificationRate: number;
+    lowIncomeShare: number;
+    zoningEnforcement: number;
+  }
+> = {
+  green_push: {
+    label: 'Green Infrastructure Push',
+    description: 'Aggressive greening and ecosystem restoration.',
+    greenIncrease: 20,
+    floodSeverity: 'none',
+    treePlantingRate: 40,
+    wetlandRestoration: 10,
+    coolRoofCoverage: 10,
+    drainageImprovement: 20,
+    permeableSurfaceGain: 20,
+    densificationRate: 1,
+    lowIncomeShare: 20,
+    zoningEnforcement: 70,
+  },
+  flood_resilience: {
+    label: 'Flood Resilience Focus',
+    description: 'Heavy investment in drainage and permeable surfaces.',
+    greenIncrease: 8,
+    floodSeverity: 'moderate',
+    treePlantingRate: 10,
+    wetlandRestoration: 15,
+    coolRoofCoverage: 5,
+    drainageImprovement: 60,
+    permeableSurfaceGain: 35,
+    densificationRate: 1,
+    lowIncomeShare: 30,
+    zoningEnforcement: 60,
+  },
+  heat_mitigation: {
+    label: 'Heat Island Mitigation',
+    description: 'Cool roofs plus new parks in hot districts.',
+    greenIncrease: 15,
+    floodSeverity: 'mild',
+    treePlantingRate: 30,
+    wetlandRestoration: 5,
+    coolRoofCoverage: 60,
+    drainageImprovement: 25,
+    permeableSurfaceGain: 15,
+    densificationRate: 1,
+    lowIncomeShare: 25,
+    zoningEnforcement: 80,
+  },
+  sprawl_2030: {
+    label: 'Urban Sprawl 2030',
+    description: 'High densification with weak controls.',
+    greenIncrease: 0,
+    floodSeverity: 'none',
+    treePlantingRate: 5,
+    wetlandRestoration: 0,
+    coolRoofCoverage: 15,
+    drainageImprovement: 15,
+    permeableSurfaceGain: 5,
+    densificationRate: 3,
+    lowIncomeShare: 35,
+    zoningEnforcement: 40,
+  },
+  combined_shock: {
+    label: 'Combined Climate Shock',
+    description: 'Extreme flood event under high vulnerability.',
+    greenIncrease: 5,
+    floodSeverity: 'extreme',
+    treePlantingRate: 15,
+    wetlandRestoration: 5,
+    coolRoofCoverage: 20,
+    drainageImprovement: 10,
+    permeableSurfaceGain: 5,
+    densificationRate: 3,
+    lowIncomeShare: 50,
+    zoningEnforcement: 50,
+  },
+};
+
 export function ScenarioPanel() {
   const {
     cities,
@@ -79,6 +175,8 @@ export function ScenarioPanel() {
 
   // F. Policy & Planning
   const [zoningEnforcement, setZoningEnforcement] = useState(0); // 0–100
+
+  const [scenarioType, setScenarioType] = useState<ScenarioPresetId | null>(null);
 
   // Load supported cities once
   const citiesQuery = useQuery({
@@ -144,6 +242,21 @@ export function ScenarioPanel() {
     },
   });
 
+  const applyPreset = (id: ScenarioPresetId) => {
+    const preset = SCENARIO_PRESETS[id];
+    setScenarioType(id);
+    setGreenCoverIncrease(preset.greenIncrease);
+    setFloodSeverity(preset.floodSeverity);
+    setTreePlantingRate(preset.treePlantingRate);
+    setWetlandRestoration(preset.wetlandRestoration);
+    setCoolRoofCoverage(preset.coolRoofCoverage);
+    setDrainageImprovement(preset.drainageImprovement);
+    setPermeableSurfaceGain(preset.permeableSurfaceGain);
+    setDensificationRate(preset.densificationRate);
+    setLowIncomeShare(preset.lowIncomeShare);
+    setZoningEnforcement(preset.zoningEnforcement);
+  };
+
   const handleApplyScenario = () => {
     if (!currentCityId) return;
     scenarioMutation.mutate({
@@ -152,6 +265,7 @@ export function ScenarioPanel() {
       flood_event: floodSeverity !== 'none',
       flood_intensity: floodSeverity,
       sprawl_horizon: 2030,
+      scenario_type: scenarioType ?? 'custom',
       tree_planting_rate: treePlantingRate,
       wetland_restoration: wetlandRestoration,
       cool_roof_coverage: coolRoofCoverage,
@@ -195,6 +309,28 @@ export function ScenarioPanel() {
               {c.name}
             </Button>
           ))}
+        </div>
+      </div>
+
+      {/* Scenario templates */}
+      <div className="glass-panel-solid p-4 space-y-2">
+        <div className="section-title">Scenario templates</div>
+        <div className="flex flex-wrap gap-1.5">
+          {(Object.keys(SCENARIO_PRESETS) as ScenarioPresetId[]).map((id) => {
+            const preset = SCENARIO_PRESETS[id];
+            const active = scenarioType === id;
+            return (
+              <Button
+                key={id}
+                size="xs"
+                variant={active ? 'default' : 'outline'}
+                onClick={() => applyPreset(id)}
+                className="text-[10px] font-medium"
+              >
+                {preset.label}
+              </Button>
+            );
+          })}
         </div>
       </div>
 
