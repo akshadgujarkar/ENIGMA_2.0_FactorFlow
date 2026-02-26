@@ -7,67 +7,65 @@ export interface Metrics {
   floodRisk: number;
 }
 
+export interface SdgScores {
+  greenScore: number;
+  heatResilienceScore: number;
+  floodRiskScore: number;
+  urbanSprawlScore: number;
+  sdg11CompositeScore: number;
+}
+
 export type FloodSeverity = 'none' | 'mild' | 'moderate' | 'extreme';
 
-export type LayerKey = 'landUse' | 'greenCover' | 'heatIslands' | 'floodZones' | 'buildings';
+export type LayerKey =
+  | 'landUse'
+  | 'greenCover'
+  | 'heatIslands'
+  | 'floodZones'
+  | 'buildings';
+
+export interface CityMeta {
+  id: string;
+  name: string;
+  country: string;
+  center: [number, number];
+  zoom: number;
+}
 
 interface CityState {
+  cities: CityMeta[];
+  currentCityId: string | null;
+
   greenCoverIncrease: number;
   floodSeverity: FloodSeverity;
   scenarioApplied: boolean;
   layers: Record<LayerKey, boolean>;
-  baseMetrics: Metrics;
-  currentMetrics: Metrics;
+
+  baseMetrics: Metrics | null;
+  currentMetrics: Metrics | null;
+  sdgScores: SdgScores | null;
+  impactStory: string | null;
+
+  setCities: (cities: CityMeta[]) => void;
+  setCurrentCity: (cityId: string) => void;
+
+  setBaseline: (metrics: Metrics) => void;
+  setScenarioMetrics: (metrics: Metrics) => void;
+  setSdgScores: (scores: SdgScores) => void;
+  setImpactStory: (story: string | null) => void;
 
   setGreenCoverIncrease: (val: number) => void;
   setFloodSeverity: (val: FloodSeverity) => void;
   toggleLayer: (layer: LayerKey) => void;
-  applyScenario: () => void;
+
+  applyScenarioLocally: () => void;
   resetScenario: () => void;
 }
 
-const BASE_METRICS: Metrics = {
-  density: 72,
-  greenCover: 34,
-  heatStress: 68,
-  floodRisk: 45,
-};
-
-const FLOOD_SEVERITY_BONUS: Record<FloodSeverity, number> = {
-  none: 0,
-  mild: 10,
-  moderate: 25,
-  extreme: 45,
-};
-
-function calculateMetrics(
-  base: Metrics,
-  greenIncrease: number,
-  floodSeverity: FloodSeverity
-): Metrics {
-  const newGreenCover = Math.min(
-    100,
-    base.greenCover + greenIncrease * (1 - base.greenCover / 100)
-  );
-  const greenDelta = newGreenCover - base.greenCover;
-  const newHeatStress = Math.max(0, Math.round(base.heatStress - greenDelta * 0.8));
-  const floodBonus = FLOOD_SEVERITY_BONUS[floodSeverity];
-  const greenMitigation = greenDelta * 0.3;
-  const newFloodRisk = Math.min(
-    100,
-    Math.max(0, Math.round(base.floodRisk + floodBonus - greenMitigation))
-  );
-  const newDensity = Math.max(0, Math.round(base.density - greenDelta * 0.15));
-
-  return {
-    density: newDensity,
-    greenCover: Math.round(newGreenCover),
-    heatStress: newHeatStress,
-    floodRisk: newFloodRisk,
-  };
-}
-
 export const useCityStore = create<CityState>((set, get) => ({
+  cities: [],
+  currentCityId: null,
+
   greenCoverIncrease: 0,
   floodSeverity: 'none',
   scenarioApplied: false,
@@ -78,8 +76,38 @@ export const useCityStore = create<CityState>((set, get) => ({
     floodZones: true,
     buildings: true,
   },
-  baseMetrics: BASE_METRICS,
-  currentMetrics: BASE_METRICS,
+
+  baseMetrics: null,
+  currentMetrics: null,
+  sdgScores: null,
+  impactStory: null,
+
+  setCities: (cities) =>
+    set((state) => ({
+      cities,
+      currentCityId: state.currentCityId ?? cities[0]?.id ?? null,
+    })),
+  setCurrentCity: (cityId) =>
+    set({
+      currentCityId: cityId,
+      scenarioApplied: false,
+      greenCoverIncrease: 0,
+      floodSeverity: 'none',
+      impactStory: null,
+    }),
+
+  setBaseline: (metrics) =>
+    set({
+      baseMetrics: metrics,
+      currentMetrics: metrics,
+    }),
+  setScenarioMetrics: (metrics) =>
+    set({
+      currentMetrics: metrics,
+      scenarioApplied: true,
+    }),
+  setSdgScores: (scores) => set({ sdgScores: scores }),
+  setImpactStory: (story) => set({ impactStory: story }),
 
   setGreenCoverIncrease: (val) => set({ greenCoverIncrease: val }),
   setFloodSeverity: (val) => set({ floodSeverity: val as FloodSeverity }),
@@ -87,18 +115,22 @@ export const useCityStore = create<CityState>((set, get) => ({
     set((state) => ({
       layers: { ...state.layers, [layer]: !state.layers[layer] },
     })),
-  applyScenario: () => {
-    const { baseMetrics, greenCoverIncrease, floodSeverity } = get();
-    set({
-      scenarioApplied: true,
-      currentMetrics: calculateMetrics(baseMetrics, greenCoverIncrease, floodSeverity),
-    });
+
+  // Fallback local-only scenario toggle to keep map animations responsive
+  applyScenarioLocally: () => {
+    const { scenarioApplied } = get();
+    if (!scenarioApplied) {
+      set({ scenarioApplied: true });
+    }
   },
+
   resetScenario: () =>
-    set({
+    set((state) => ({
       scenarioApplied: false,
       greenCoverIncrease: 0,
       floodSeverity: 'none',
-      currentMetrics: BASE_METRICS,
-    }),
+      currentMetrics: state.baseMetrics,
+      impactStory: null,
+    })),
 }));
+

@@ -1,10 +1,25 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Leaf, Droplets, Layers, RotateCcw, Play } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useCityStore, type FloodSeverity, type LayerKey } from '@/stores/cityStore';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  useCityStore,
+  type FloodSeverity,
+  type LayerKey,
+} from '@/stores/cityStore';
+import {
+  fetchCities,
+  fetchCityData,
+  fetchImpactStory,
+  fetchSdgScores,
+  simulateScenario,
+} from '@/services/api';
 
 const FLOOD_OPTIONS: { value: FloodSeverity; label: string }[] = [
   { value: 'none', label: 'None' },
@@ -23,16 +38,99 @@ const LAYER_LABELS: Record<LayerKey, string> = {
 
 export function ScenarioPanel() {
   const {
+    cities,
+    currentCityId,
     greenCoverIncrease,
     floodSeverity,
     scenarioApplied,
     layers,
+    setCities,
+    setCurrentCity,
+    setBaseline,
+    setScenarioMetrics,
+    setSdgScores,
+    setImpactStory,
     setGreenCoverIncrease,
     setFloodSeverity,
     toggleLayer,
-    applyScenario,
     resetScenario,
   } = useCityStore();
+
+  const { toast } = useToast();
+
+  // Load supported cities once
+  const citiesQuery = useQuery({
+    queryKey: ['cities'],
+    queryFn: fetchCities,
+  });
+
+  useEffect(() => {
+    if (citiesQuery.data) {
+      setCities(citiesQuery.data);
+    }
+  }, [citiesQuery.data, setCities]);
+
+  // Load baseline metrics whenever the current city changes
+  const cityDataQuery = useQuery({
+    queryKey: ['city-data', currentCityId],
+    enabled: !!currentCityId,
+    queryFn: () => fetchCityData(currentCityId!),
+  });
+
+  useEffect(() => {
+    if (cityDataQuery.data) {
+      const m = cityDataQuery.data.metrics;
+      setBaseline({
+        density: m.builtUp,
+        greenCover: m.greenCover,
+        heatStress: m.heatStress,
+        floodRisk: m.floodRisk,
+      });
+    }
+  }, [cityDataQuery.data, setBaseline]);
+
+  const scenarioMutation = useMutation({
+    mutationFn: simulateScenario,
+    onSuccess: async (result) => {
+      setScenarioMetrics(result.scenario_metrics);
+
+      const sdg = await fetchSdgScores({
+        city: result.city,
+        green_increase: result.config.green_increase,
+        flood_intensity: result.config.flood_intensity,
+        sprawl_horizon: result.config.sprawl_horizon,
+      });
+      setSdgScores(sdg.scores);
+
+      const explain = await fetchImpactStory({
+        city: result.city,
+        baseline: result.baseline_metrics,
+        scenario: result.scenario_metrics,
+        config: result.config,
+      });
+      setImpactStory(explain.story);
+    },
+    onError: (err: unknown) => {
+      console.error(err);
+      toast({
+        title: 'Scenario failed',
+        description:
+          err instanceof Error ? err.message : 'Unable to run scenario. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleApplyScenario = () => {
+    if (!currentCityId) return;
+    scenarioMutation.mutate({
+      city: currentCityId,
+      green_increase: greenCoverIncrease,
+      flood_event: floodSeverity !== 'none',
+      flood_intensity: floodSeverity,
+      sprawl_horizon: 2030,
+    });
+  };
 
   return (
     <motion.div
@@ -50,6 +148,23 @@ export function ScenarioPanel() {
         <p className="text-xs text-muted-foreground mt-1">
           SDG 11 · Sustainable Cities & Communities
         </p>
+      </div>
+
+      {/* City selector */}
+      <div className="glass-panel-solid p-4 space-y-2">
+        <div className="section-title">City</div>
+        <div className="flex flex-wrap gap-1.5">
+          {cities.map((c) => (
+            <Button
+              key={c.id}
+              size="xs"
+              variant={currentCityId === c.id ? 'default' : 'outline'}
+              onClick={() => setCurrentCity(c.id)}
+            >
+              {c.name}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Green Cover Slider */}
@@ -96,12 +211,13 @@ export function ScenarioPanel() {
       {/* Apply / Reset */}
       <div className="flex gap-2">
         <Button
-          onClick={applyScenario}
+          onClick={handleApplyScenario}
           className="flex-1 gap-1.5"
           size="sm"
+          disabled={!currentCityId || scenarioMutation.isPending}
         >
           <Play className="h-3.5 w-3.5" />
-          Apply Scenario
+          {scenarioMutation.isPending ? 'Running…' : 'Run Scenario'}
         </Button>
         <Button
           onClick={resetScenario}
@@ -139,10 +255,11 @@ export function ScenarioPanel() {
       {/* Info */}
       <div className="mt-auto pt-4 border-t border-border">
         <p className="text-[10px] text-muted-foreground leading-relaxed">
-          Demo prototype with mock data. Architecture prepared for real-time API,
-          WebSocket, and satellite feed integration.
+          Powered by live satellite indices, ML models, and Gemini explanations
+          from the Resilient City API.
         </p>
       </div>
     </motion.div>
   );
 }
+

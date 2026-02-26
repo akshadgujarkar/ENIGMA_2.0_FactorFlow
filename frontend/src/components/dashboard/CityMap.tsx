@@ -1,17 +1,8 @@
 import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
 import { useCityStore } from '@/stores/cityStore';
-import {
-  MAP_CENTER,
-  MAP_ZOOM,
-  landUseData,
-  greenCoverData,
-  newGreenData,
-  heatIslandData,
-  floodZoneData,
-  LAND_USE_COLORS,
-} from '@/data/mockGeoData';
 
 const BASEMAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
@@ -40,6 +31,8 @@ export function CityMap() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const {
+    cities,
+    currentCityId,
     layers,
     scenarioApplied,
     greenCoverIncrease,
@@ -48,13 +41,17 @@ export function CityMap() {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || mapRef.current) return;
+    if (!mapContainer.current || mapRef.current || !currentCityId) return;
 
-    const map = new maplibregl.Map({
+    const city = cities.find((c) => c.id === currentCityId);
+    const center = city?.center ?? [0, 0];
+    const zoom = city?.zoom ?? 11;
+
+    const map = new maplibre-gl.Map({
       container: mapContainer.current,
       style: BASEMAP_STYLE,
-      center: MAP_CENTER,
-      zoom: MAP_ZOOM,
+      center,
+      zoom,
       pitch: 50,
       bearing: -15,
       // @ts-expect-error antialias is valid but not in type defs
@@ -90,46 +87,11 @@ export function CityMap() {
         });
       }
 
-      // Land Use
-      map.addSource('land-use', { type: 'geojson', data: landUseData });
-      map.addLayer({
-        id: 'land-use-fill',
-        type: 'fill',
-        source: 'land-use',
-        paint: {
-          'fill-color': [
-            'match',
-            ['get', 'type'],
-            'residential', LAND_USE_COLORS.residential,
-            'commercial', LAND_USE_COLORS.commercial,
-            'industrial', LAND_USE_COLORS.industrial,
-            'mixed', LAND_USE_COLORS.mixed,
-            '#888',
-          ],
-          'fill-opacity': 0.25,
-        },
-      });
-      map.addLayer({
-        id: 'land-use-outline',
-        type: 'line',
-        source: 'land-use',
-        paint: {
-          'line-color': [
-            'match',
-            ['get', 'type'],
-            'residential', LAND_USE_COLORS.residential,
-            'commercial', LAND_USE_COLORS.commercial,
-            'industrial', LAND_USE_COLORS.industrial,
-            'mixed', LAND_USE_COLORS.mixed,
-            '#888',
-          ],
-          'line-width': 1.5,
-          'line-opacity': 0.6,
-        },
-      });
+      // Thematic layers: these are now styled overlays that will be driven by
+      // backend-provided tiles or vector data. For now we keep them as empty
+      // sources whose visibility and styling are still controlled by the UI.
 
-      // Green Cover
-      map.addSource('green-cover', { type: 'geojson', data: greenCoverData });
+      map.addSource('green-cover', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({
         id: 'green-cover-fill',
         type: 'fill',
@@ -140,8 +102,7 @@ export function CityMap() {
         },
       });
 
-      // New Green (scenario)
-      map.addSource('new-green', { type: 'geojson', data: newGreenData });
+      map.addSource('new-green', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({
         id: 'new-green-fill',
         type: 'fill',
@@ -163,8 +124,7 @@ export function CityMap() {
         },
       });
 
-      // Heat Islands
-      map.addSource('heat-islands', { type: 'geojson', data: heatIslandData });
+      map.addSource('heat-islands', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({
         id: 'heat-islands-fill',
         type: 'fill',
@@ -175,8 +135,7 @@ export function CityMap() {
         },
       });
 
-      // Flood Zones
-      map.addSource('flood-zones', { type: 'geojson', data: floodZoneData });
+      map.addSource('flood-zones', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({
         id: 'flood-zones-fill',
         type: 'fill',
@@ -196,31 +155,6 @@ export function CityMap() {
           'line-opacity': 0.5,
         },
       });
-
-      // Popups on click
-      const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: true });
-
-      ['land-use-fill', 'green-cover-fill', 'heat-islands-fill', 'flood-zones-fill'].forEach(
-        (layerId) => {
-          map.on('click', layerId, (e) => {
-            const props = e.features?.[0]?.properties;
-            if (!props) return;
-            const name = props.name || props.type || 'Unknown';
-            popup
-              .setLngLat(e.lngLat)
-              .setHTML(
-                `<div style="color:#e2e8f0;font-size:12px;font-weight:600;">${name}</div>`
-              )
-              .addTo(map);
-          });
-          map.on('mouseenter', layerId, () => {
-            map.getCanvas().style.cursor = 'pointer';
-          });
-          map.on('mouseleave', layerId, () => {
-            map.getCanvas().style.cursor = '';
-          });
-        }
-      );
     });
 
     mapRef.current = map;
@@ -228,7 +162,7 @@ export function CityMap() {
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [cities, currentCityId]);
 
   // Update layer visibility
   useEffect(() => {
@@ -306,39 +240,28 @@ export function CityMap() {
 
     if (!scenarioApplied) return;
 
-    // Heat danger markers — pick highest intensity
-    const sortedHeat = [...heatIslandData.features].sort(
-      (a, b) => ((b.properties?.intensity as number) || 0) - ((a.properties?.intensity as number) || 0)
-    );
-    sortedHeat.slice(0, 2).forEach((f) => {
-      if (f.geometry.type !== 'Polygon') return;
-      const center = polygonCentroid(f.geometry.coordinates[0] as number[][]);
-      const marker = new maplibregl.Marker({ element: createPulseMarker('#ff4500', f.properties?.name || 'Heat Zone') })
-        .setLngLat(center)
-        .addTo(map);
-      markersRef.current.push(marker);
-    });
+    // For now we place a simple pulsing marker roughly at the city centre to
+    // indicate heightened risk, since the detailed polygons are served from
+    // the backend as styled layers.
+    const city = cities.find((c) => c.id === currentCityId);
+    if (!city) return;
+    const center = city.center;
 
-    // Flood danger markers — only when severity > none
-    if (floodSeverity !== 'none') {
-      const sortedFlood = [...floodZoneData.features].sort(
-        (a, b) => ((b.properties?.intensity as number) || 0) - ((a.properties?.intensity as number) || 0)
-      );
-      sortedFlood.slice(0, 2).forEach((f) => {
-        if (f.geometry.type !== 'Polygon') return;
-        const center = polygonCentroid(f.geometry.coordinates[0] as number[][]);
-        const marker = new maplibregl.Marker({ element: createPulseMarker('#ff2d55', f.properties?.name || 'Flood Zone') })
-          .setLngLat(center)
-          .addTo(map);
-        markersRef.current.push(marker);
-      });
-    }
+    const color = floodSeverity !== 'none' ? '#ff2d55' : '#ff4500';
+    const label =
+      floodSeverity !== 'none' ? `Flood ${floodSeverity.toUpperCase()}` : 'Heat Zone';
+    const marker = new maplibregl.Marker({
+      element: createPulseMarker(color, label),
+    })
+      .setLngLat(center)
+      .addTo(map);
+    markersRef.current.push(marker);
 
     return () => {
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [scenarioApplied, floodSeverity]);
+  }, [cities, currentCityId, scenarioApplied, floodSeverity]);
 
   return (
     <div className="relative w-full h-full">
@@ -346,7 +269,9 @@ export function CityMap() {
       {/* Map overlay title */}
       <div className="absolute top-4 left-4 glass-panel px-3 py-2 pointer-events-none">
         <span className="text-xs font-medium text-foreground mono">
-          Barcelona · Eixample District
+          {currentCityId
+            ? cities.find((c) => c.id === currentCityId)?.name
+            : 'Select a city'}
         </span>
       </div>
       {/* Scenario active banner */}

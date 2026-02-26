@@ -1,10 +1,19 @@
 import { motion } from 'framer-motion';
 import { Activity, TreePine, Thermometer, Waves } from 'lucide-react';
+
 import { RadialProgress } from './RadialProgress';
 import { useCityStore } from '@/stores/cityStore';
 
 export function MetricsPanel() {
-  const { currentMetrics, scenarioApplied } = useCityStore();
+  const { currentMetrics, sdgScores, scenarioApplied, impactStory } = useCityStore();
+
+  if (!currentMetrics) {
+    return (
+      <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+        Waiting for city selection and live metrics…
+      </div>
+    );
+  }
 
   const indicators = [
     {
@@ -93,13 +102,23 @@ export function MetricsPanel() {
           className="glass-panel p-3 border-primary/30 space-y-1"
         >
           <div className="text-xs font-semibold text-primary">Scenario Impact</div>
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            Adding green cover reduces heat stress through evapotranspiration and
-            mitigates flood risk via natural absorption. Urban density decreases
-            slightly as green corridors replace impervious surfaces.
-          </p>
+          {sdgScores && (
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Green: {sdgScores.greenScore.toFixed(1)} · Heat resilience:{' '}
+              {sdgScores.heatResilienceScore.toFixed(1)} · Flood risk:{' '}
+              {sdgScores.floodRiskScore.toFixed(1)} · Urban sprawl:{' '}
+              {sdgScores.urbanSprawlScore.toFixed(1)} · SDG‑11 composite:{' '}
+              {sdgScores.sdg11CompositeScore.toFixed(1)}
+            </p>
+          )}
+          {impactStory && (
+            <p className="text-[10px] text-muted-foreground leading-relaxed mt-1">
+              {impactStory}
+            </p>
+          )}
         </motion.div>
       )}
     </motion.div>
   );
 }
+
