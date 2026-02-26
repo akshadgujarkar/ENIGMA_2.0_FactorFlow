@@ -15,6 +15,14 @@ export interface SdgScores {
   sdg11CompositeScore: number;
 }
 
+export interface Hotspot {
+  type: 'heat' | 'flood';
+  lng: number;
+  lat: number;
+  label: string;
+  intensity: number;
+}
+
 export type FloodSeverity = 'none' | 'mild' | 'moderate' | 'extreme';
 
 export type LayerKey =
@@ -46,6 +54,8 @@ interface CityState {
   sdgScores: SdgScores | null;
   impactStory: string | null;
 
+  hotspots: Hotspot[];
+
   setCities: (cities: CityMeta[]) => void;
   setCurrentCity: (cityId: string) => void;
 
@@ -53,6 +63,8 @@ interface CityState {
   setScenarioMetrics: (metrics: Metrics) => void;
   setSdgScores: (scores: SdgScores) => void;
   setImpactStory: (story: string | null) => void;
+
+  setHotspots: (hotspots: Hotspot[]) => void;
 
   setGreenCoverIncrease: (val: number) => void;
   setFloodSeverity: (val: FloodSeverity) => void;
@@ -81,6 +93,7 @@ export const useCityStore = create<CityState>((set, get) => ({
   currentMetrics: null,
   sdgScores: null,
   impactStory: null,
+  hotspots: [],
 
   setCities: (cities) =>
     set((state) => ({
@@ -108,6 +121,7 @@ export const useCityStore = create<CityState>((set, get) => ({
     }),
   setSdgScores: (scores) => set({ sdgScores: scores }),
   setImpactStory: (story) => set({ impactStory: story }),
+  setHotspots: (hotspots) => set({ hotspots }),
 
   setGreenCoverIncrease: (val) => set({ greenCoverIncrease: val }),
   setFloodSeverity: (val) => set({ floodSeverity: val as FloodSeverity }),

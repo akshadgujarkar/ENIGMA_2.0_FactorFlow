@@ -42,6 +42,7 @@ export function CityMap() {
     scenarioApplied,
     greenCoverIncrease,
     floodSeverity,
+    hotspots,
   } = useCityStore();
 
   // Initialize map
@@ -234,7 +235,7 @@ export function CityMap() {
     }
   }, [scenarioApplied, greenCoverIncrease, floodSeverity]);
 
-  // Pulsing danger markers
+  // Pulsing danger markers based on backend-provided hotspots
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -243,30 +244,23 @@ export function CityMap() {
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    if (!scenarioApplied) return;
+    if (!scenarioApplied || hotspots.length === 0) return;
 
-    // For now we place a simple pulsing marker roughly at the city centre to
-    // indicate heightened risk, since the detailed polygons are served from
-    // the backend as styled layers.
-    const city = cities.find((c) => c.id === currentCityId);
-    if (!city) return;
-    const center = city.center;
-
-    const color = floodSeverity !== 'none' ? '#ff2d55' : '#ff4500';
-    const label =
-      floodSeverity !== 'none' ? `Flood ${floodSeverity.toUpperCase()}` : 'Heat Zone';
-    const marker = new maplibregl.Marker({
-      element: createPulseMarker(color, label),
-    })
-      .setLngLat(center)
-      .addTo(map);
-    markersRef.current.push(marker);
+    hotspots.forEach((spot) => {
+      const color = spot.type === 'flood' ? '#ff2d55' : '#ff7f11';
+      const marker = new maplibregl.Marker({
+        element: createPulseMarker(color, spot.label),
+      })
+        .setLngLat([spot.lng, spot.lat])
+        .addTo(map);
+      markersRef.current.push(marker);
+    });
 
     return () => {
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [cities, currentCityId, scenarioApplied, floodSeverity]);
+  }, [scenarioApplied, hotspots]);
 
   return (
     <div className="relative w-full h-full">

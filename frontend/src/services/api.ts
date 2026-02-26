@@ -48,6 +48,34 @@ export interface ScenarioSimulateConfig {
   flood_event: boolean;
   flood_intensity: 'none' | 'mild' | 'moderate' | 'extreme';
   sprawl_horizon: number;
+
+  // A. Environmental & Ecological Parameters
+  tree_planting_rate?: number;
+  wetland_restoration?: number;
+
+  // B. Urban Heat Parameters
+  cool_roof_coverage?: number;
+
+  // C. Flood & Hydrological Parameters
+  drainage_improvement?: number;
+  permeable_surface_gain?: number;
+
+  // D. Urban Growth & Infrastructure Parameters
+  densification_rate?: number;
+
+  // E. Socio-Economic Vulnerability Parameters
+  low_income_share?: number;
+
+  // F. Policy & Planning Intervention Parameters
+  zoning_enforcement?: number;
+}
+
+export interface ScenarioHotspot {
+  type: 'heat' | 'flood';
+  lng: number;
+  lat: number;
+  label: string;
+  intensity: number;
 }
 
 export interface ScenarioSimulateResponse {
@@ -60,6 +88,7 @@ export interface ScenarioSimulateResponse {
     floodRisk: number;
   };
   scenario_metrics: Metrics;
+  hotspots?: ScenarioHotspot[];
 }
 
 export async function simulateScenario(
