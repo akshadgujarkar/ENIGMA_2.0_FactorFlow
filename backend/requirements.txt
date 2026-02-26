@@ -1,6 +1,6 @@
 Flask==3.0.3
 Flask-Cors==4.0.1
-google-earth-engine==0.1.390
+earthengine-api
 google-auth==2.37.0
 firebase-admin==6.6.0
 google-generativeai==0.8.3

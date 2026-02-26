@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 
 import type { CityMeta, Metrics, SdgScores } from '@/stores/cityStore';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:5000/api';
 
 export const queryClient = new QueryClient();
 

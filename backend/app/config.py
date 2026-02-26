@@ -17,6 +17,7 @@ class Config:
   CORS_ORIGINS: str | None = os.getenv("CORS_ORIGINS")
 
   # Google Earth Engine
+  GEE_PROJECT: str | None = os.getenv("GEE_PROJECT")
   GEE_SERVICE_ACCOUNT: str | None = os.getenv("GEE_SERVICE_ACCOUNT")
   GEE_PRIVATE_KEY_PATH: str | None = os.getenv("GEE_PRIVATE_KEY_PATH")
 
@@ -30,4 +31,3 @@ class Config:
 
   # Model storage
   MODELS_DIR: str = os.getenv("MODELS_DIR", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "models")))
-

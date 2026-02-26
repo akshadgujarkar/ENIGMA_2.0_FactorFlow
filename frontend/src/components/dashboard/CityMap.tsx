@@ -1,10 +1,15 @@
 import { useEffect, useRef } from 'react';
-import maplibregl from 'maplibre-gl';
+import maplibregl from 'maplibre-gl/dist/maplibre-gl-csp';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { useCityStore } from '@/stores/cityStore';
 
 const BASEMAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+
+// Use the explicit CSP worker bundle to avoid runtime helper issues in dev pre-bundling.
+maplibregl.setWorkerUrl(
+  new URL('maplibre-gl/dist/maplibre-gl-csp-worker.js', import.meta.url).toString()
+);
 
 /** Compute centroid of a polygon's first ring */
 function polygonCentroid(coords: number[][]): [number, number] {
@@ -47,7 +52,7 @@ export function CityMap() {
     const center = city?.center ?? [0, 0];
     const zoom = city?.zoom ?? 11;
 
-    const map = new maplibre-gl.Map({
+    const map = new maplibregl.Map({
       container: mapContainer.current,
       style: BASEMAP_STYLE,
       center,
