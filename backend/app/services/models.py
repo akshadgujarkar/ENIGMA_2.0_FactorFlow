@@ -19,6 +19,77 @@ class UnknownCityError(ValueError):
   pass
 
 
+def _clamp(value: float, lower: float = 0.0, upper: float = 100.0) -> float:
+  return max(lower, min(upper, value))
+
+
+def _hotspot_count(intensity: float, thresholds: tuple[float, float, float]) -> int:
+  low, medium, high = thresholds
+  if intensity >= high:
+    return 4
+  if intensity >= medium:
+    return 3
+  if intensity >= low:
+    return 2
+  return 1
+
+
+def _generate_hotspots(
+  hotspot_type: str,
+  label_prefix: str,
+  base_lng: float,
+  base_lat: float,
+  intensity: float,
+  offsets: list[tuple[float, float]],
+  count: int,
+) -> list[dict[str, Any]]:
+  hotspots: list[dict[str, Any]] = []
+  for idx, (lng_offset, lat_offset) in enumerate(offsets[:count], start=1):
+    hotspot_intensity = _clamp(intensity - (idx - 1) * 4.5)
+    hotspots.append(
+      {
+        "type": hotspot_type,
+        "lng": round(base_lng + lng_offset, 6),
+        "lat": round(base_lat + lat_offset, 6),
+        "label": f"{label_prefix} {idx}",
+        "intensity": round(hotspot_intensity, 1),
+      }
+    )
+  return hotspots
+
+
+CITY_HOTSPOT_LAYOUTS: dict[str, dict[str, list[tuple[float, float]]]] = {
+  "delhi": {
+    "heat": [(0.020, 0.010), (0.034, -0.004), (-0.016, 0.018), (0.010, -0.024)],
+    "flood": [(-0.015, -0.015), (-0.028, 0.008), (0.014, -0.024), (-0.006, 0.026)],
+  },
+  "mumbai": {
+    "heat": [(0.018, 0.012), (0.030, -0.010), (-0.014, 0.020), (0.006, -0.022)],
+    "flood": [(-0.020, -0.012), (-0.030, 0.006), (0.010, -0.026), (0.018, 0.014)],
+  },
+  "pune": {
+    "heat": [(0.016, 0.010), (0.028, -0.008), (-0.012, 0.018), (0.008, -0.018)],
+    "flood": [(-0.014, -0.014), (-0.024, 0.010), (0.012, -0.020), (-0.008, 0.022)],
+  },
+  "bengaluru": {
+    "heat": [(0.014, 0.014), (0.026, -0.006), (-0.016, 0.016), (0.010, -0.020)],
+    "flood": [(-0.012, -0.016), (-0.022, 0.012), (0.016, -0.018), (-0.004, 0.024)],
+  },
+  "hyderabad": {
+    "heat": [(0.018, 0.010), (0.030, -0.006), (-0.014, 0.016), (0.012, -0.020)],
+    "flood": [(-0.016, -0.014), (-0.026, 0.008), (0.014, -0.022), (-0.006, 0.024)],
+  },
+}
+
+
+def _city_hotspot_offsets(city_id: str, hotspot_type: str) -> list[tuple[float, float]]:
+  default_layout = {
+    "heat": [(0.020, 0.010), (0.032, -0.006), (-0.018, 0.015), (0.008, -0.022)],
+    "flood": [(-0.015, -0.015), (-0.028, 0.008), (0.014, -0.024), (-0.006, 0.026)],
+  }
+  return CITY_HOTSPOT_LAYOUTS.get(city_id, default_layout).get(hotspot_type, default_layout[hotspot_type])
+
+
 def _models_dir() -> Path:
   cfg = Config()
   path = Path(cfg.MODELS_DIR)
@@ -136,6 +207,10 @@ def run_scenario_simulation(city_id: str, config: dict[str, Any]) -> dict[str, A
 
   base = get_city_realtime_indices(city_id)
   metrics = base["metrics"]
+  base_green = float(metrics["greenCover"])
+  base_heat = float(metrics["heatStress"])
+  base_flood = float(metrics["floodRisk"])
+  base_density = float(metrics["builtUp"])
 
   green_increase = float(config.get("green_increase", 0))
   flood_event = bool(config.get("flood_event", False))
@@ -176,7 +251,8 @@ def run_scenario_simulation(city_id: str, config: dict[str, Any]) -> dict[str, A
   rf_reg: RandomForestRegressor = models["rf_regressor"]
   lin: LinearRegression = models["linear"]
 
-  # Base predictions (no scenario)
+  # Base predictions (no scenario). These synthetic-model outputs are used as
+  # directional signals, not as direct dashboard values.
   heat_pred_base = float(lin.predict(X)[0])
   green_pred_base = float(rf_reg.predict(X)[0])
   flood_prob_base = float(rf_clf.predict_proba(X)[0, 1])
@@ -202,19 +278,49 @@ def run_scenario_simulation(city_id: str, config: dict[str, Any]) -> dict[str, A
   years_ahead = max(0, sprawl_horizon - 2025)
   sprawl_signal = float(xgb.predict(X)[0] + years_ahead * (1.0 + densification_rate / 5.0))
 
-  # Combine into dashboard-style metrics (0–100)
-  # Additional cooling from cool roofs (B) and policy enforcement (F)
-  heat_policy_cooling = 0.15 * cool_roof_coverage + 0.05 * zoning_enforcement
+  # Keep scenario metrics anchored to the live baseline values instead of
+  # replacing them with raw synthetic-model outputs on a mismatched scale.
+  green_model_delta = _clamp(green_after_green - green_pred_base, -12.0, 18.0)
+  heat_model_delta = _clamp(heat_after_green - heat_pred_base, -12.0, 12.0)
+  flood_model_delta = _clamp((flood_prob_after - flood_prob_base) * 100.0, -20.0, 35.0)
 
-  green_cover = max(0.0, min(100.0, green_after_green))
-  heat_stress = max(0.0, min(100.0, heat_after_green - heat_policy_cooling / 2.0))
-  flood_risk = max(0.0, min(100.0, 100.0 * flood_prob_after))
-  density = max(
-    0.0,
-    min(
-      100.0,
-      metrics["builtUp"] + 0.2 * sprawl_signal - effective_green_increase * 0.1,
-    ),
+  green_cover = _clamp(
+    base_green
+    + green_increase * 0.45
+    + tree_planting_rate * 0.18
+    + wetland_restoration * 0.7
+    - densification_rate * 1.5
+    + green_model_delta
+  )
+  heat_stress = _clamp(
+    base_heat
+    - green_increase * 0.2
+    - tree_planting_rate * 0.08
+    - wetland_restoration * 0.2
+    - cool_roof_coverage * 0.12
+    - zoning_enforcement * 0.03
+    + densification_rate * 3.0
+    + max(0.0, base_density - 60.0) * 0.05
+    + heat_model_delta
+  )
+  flood_severity_bump = {"none": 0.0, "mild": 8.0, "moderate": 16.0, "extreme": 28.0}.get(
+    flood_intensity, 0.0
+  )
+  flood_risk = _clamp(
+    base_flood
+    + (flood_severity_bump if flood_event else 0.0)
+    - drainage_improvement * 0.18
+    - permeable_surface_gain * 0.28
+    - wetland_restoration * 0.35
+    + densification_rate * 1.5
+    + flood_model_delta
+  )
+  density = _clamp(
+    base_density
+    + years_ahead * 0.6
+    + densification_rate * 4.0
+    - effective_green_increase * 0.15
+    + _clamp(sprawl_signal / 20.0, -5.0, 18.0)
   )
 
   # Socio-economic vulnerability index (0–100) used for insights and map hotspots
@@ -227,35 +333,48 @@ def run_scenario_simulation(city_id: str, config: dict[str, Any]) -> dict[str, A
     "floodRisk": round(flood_risk, 1),
   }
 
-  # Generate simple hotspot locations per city to drive map markers.
+  # Generate multiple synthetic hotspot locations per city to drive map markers.
   city_meta = next(c for c in SUPPORTED_CITIES if c["id"] == city_id)
   base_lng, base_lat = city_meta["center"]
   hotspots: list[dict[str, Any]] = []
 
-  if heat_stress > 40:
-    hotspots.append(
-      {
-        "type": "heat",
-        "lng": base_lng + 0.02,
-        "lat": base_lat + 0.01,
-        "label": "Urban heat hotspot",
-        "intensity": heat_stress,
-      }
+  heat_offsets = _city_hotspot_offsets(city_id, "heat")
+  flood_offsets = _city_hotspot_offsets(city_id, "flood")
+  heat_trigger_intensity = max(base_heat, heat_stress)
+  heat_intervention_signal = green_increase + tree_planting_rate + cool_roof_coverage / 2.0
+
+  if heat_trigger_intensity >= 32.0 or heat_intervention_signal >= 25.0:
+    heat_count = _hotspot_count(heat_trigger_intensity, (35.0, 50.0, 65.0))
+    hotspots.extend(
+      _generate_hotspots(
+        hotspot_type="heat",
+        label_prefix="Urban heat hotspot",
+        base_lng=base_lng,
+        base_lat=base_lat,
+        intensity=heat_trigger_intensity,
+        offsets=heat_offsets,
+        count=heat_count,
+      )
     )
   if flood_risk > 30 or flood_event:
-    hotspots.append(
-      {
-        "type": "flood",
-        "lng": base_lng - 0.015,
-        "lat": base_lat - 0.015,
-        "label": "Flood-prone lowland",
-        "intensity": flood_risk,
-      }
+    flood_trigger_intensity = max(flood_risk, 35.0 if flood_event else flood_risk)
+    flood_count = _hotspot_count(flood_trigger_intensity, (35.0, 50.0, 70.0))
+    hotspots.extend(
+      _generate_hotspots(
+        hotspot_type="flood",
+        label_prefix="Flood-prone lowland",
+        base_lng=base_lng,
+        base_lat=base_lat,
+        intensity=flood_risk,
+        offsets=flood_offsets,
+        count=flood_count,
+      )
     )
 
   return {
     "city": city_id,
     "config": config,
+    "baseline_data_source": base.get("dataSource", "unknown"),
     "baseline_metrics": metrics,
     "scenario_metrics": scenario_metrics,
     "model_insights": {

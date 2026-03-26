@@ -21,9 +21,11 @@ def create_app(config_class: type[Config] = Config) -> Flask:
   app.config.from_object(config_class)
 
   # Allow the React frontend (Vite dev + production origins) to call the API.
+  # Default to all origins for development; restrict in production via CORS_ORIGINS env.
+  cors_origins = app.config.get("CORS_ORIGINS") or "*"
   CORS(
     app,
-    resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", "*")}},
+    resources={r"/api/*": {"origins": cors_origins}},
   )
 
   # Initialise integrations (idempotent, safe to call at startup)
