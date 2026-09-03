@@ -1,73 +1,141 @@
-# Welcome to your Lovable project
+# Project Name
 
-## Project info
+> A short one-line description of what this project does and who it's for.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+**Live demo:** https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## Table of Contents
 
-**Use Lovable**
+- [About](#about)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Running Locally](#running-locally)
+- [Available Scripts](#available-scripts)
+- [Project Structure](#project-structure)
+- [Editing This Project](#editing-this-project)
+- [Deployment](#deployment)
+- [Custom Domain](#custom-domain)
+- [Contributing](#contributing)
+- [License](#license)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## About
 
-**Use your preferred IDE**
+Describe the purpose of the app here — what problem it solves, who the target users are, and any key features worth calling out.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
+## Tech Stack
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **[Vite](https://vitejs.dev/)** — fast build tool and dev server
+- **[TypeScript](https://www.typescriptlang.org/)** — static typing for JavaScript
+- **[React](https://react.dev/)** — UI library
+- **[shadcn/ui](https://ui.shadcn.com/)** — accessible, composable component library
+- **[Tailwind CSS](https://tailwindcss.com/)** — utility-first CSS framework
 
-## How can I deploy this project?
+## Getting Started
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Prerequisites
 
-## Can I connect a custom domain to my Lovable project?
+- **Node.js** and **npm** installed — the recommended way is via [nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
-Yes, you can!
+### Installation
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```sh
+# 1. Clone the repository
+git clone <YOUR_GIT_URL>
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+# 2. Navigate into the project directory
+cd <YOUR_PROJECT_NAME>
+
+# 3. Install dependencies
+npm install
+```
+
+### Running Locally
+
+```sh
+npm run dev
+```
+
+This starts a local dev server with hot-reloading at `http://localhost:5173` (or the port shown in your terminal).
+
+## Available Scripts
+
+| Command           | Description                              |
+|-------------------|-------------------------------------------|
+| `npm run dev`     | Start the development server              |
+| `npm run build`   | Build the app for production              |
+| `npm run preview` | Preview the production build locally      |
+| `npm run lint`    | Run linting checks                        |
+
+*(Adjust this table to match the actual scripts in your `package.json`.)*
+
+## Project Structure
+
+```
+├── public/            # Static assets
+├── src/
+│   ├── components/    # Reusable UI components
+│   ├── pages/         # Page-level components/routes
+│   ├── hooks/         # Custom React hooks
+│   ├── lib/           # Utilities and helpers
+│   └── main.tsx       # App entry point
+├── index.html
+├── tailwind.config.ts
+├── vite.config.ts
+└── package.json
+```
+
+*(Update this to reflect your actual folder layout.)*
+
+## Editing This Project
+
+There are several ways to edit this application:
+
+**1. Use Lovable**
+
+Visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting. Changes made via Lovable are committed automatically to this repo.
+
+**2. Use your preferred IDE**
+
+Clone this repo, make changes locally, and push — changes will sync back to Lovable.
+
+**3. Edit directly on GitHub**
+
+Navigate to a file, click the pencil (Edit) icon, make your changes, and commit.
+
+**4. Use GitHub Codespaces**
+
+From the repo's main page, click **Code → Codespaces → New codespace**, then edit, commit, and push from within the Codespace.
+
+## Deployment
+
+Open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click **Share → Publish**.
+
+## Custom Domain
+
+Yes, you can connect a custom domain:
+
+Go to **Project → Settings → Domains** and click **Connect Domain**.
+
+See the [custom domain setup guide](https://docs.lovable.dev/features/custom-domain#custom-domain) for details.
+
+## Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -m 'Add some feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Open a Pull Request
+
+## License
+
+Specify your project's license here (e.g. MIT, Apache 2.0). If none is chosen yet, consider adding one via [choosealicense.com](https://choosealicense.com/).
